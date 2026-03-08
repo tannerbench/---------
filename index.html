@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>放物線スナイパー</title>
+<style>
+  :root {
+    --bg: #0b0f1e;
+    --card: #111827;
+    --border: #1e2a45;
+    --accent: #38bdf8;
+    --green: #34d399;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --text: #e2e8f0;
+    --muted: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  header {
+    width: 100%;
+    max-width: 600px;
+    padding: 14px 16px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .title {
+    font-size: clamp(16px, 4vw, 22px);
+    font-weight: 900;
+    letter-spacing: -.02em;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .stats {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px 14px;
+    min-width: 60px;
+  }
+  .stat-label { font-size: 9px; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; }
+  .stat-value { font-size: 20px; font-weight: 800; font-family: 'Courier New', monospace; color: var(--text); }
+  #timer-val { color: var(--yellow); }
+  #score-val { color: var(--green); }
+
+  /* ── CANVAS ── */
+  .canvas-wrap {
+    width: 100%;
+    max-width: 600px;
+    padding: 12px 16px 0;
+    position: relative;
+  }
+  canvas {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 16px;
+    border: 1.5px solid var(--border);
+    display: block;
+    background: #080d1a;
+    touch-action: none;
+  }
+
+  /* ── HIT BANNER ── */
+  #hit-banner {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    background: var(--green);
+    color: #0b0f1e;
+    font-size: 28px;
+    font-weight: 900;
+    padding: 14px 40px;
+    border-radius: 16px;
+    letter-spacing: .05em;
+    pointer-events: none;
+    opacity: 0;
+    transition: none;
+    z-index: 10;
+    white-space: nowrap;
+  }
+  #hit-banner.show {
+    animation: hitPop .7s cubic-bezier(.36,1.56,.64,1) forwards;
+  }
+  @keyframes hitPop {
+    0%   { transform: translate(-50%,-50%) scale(0); opacity:1; }
+    50%  { transform: translate(-50%,-50%) scale(1.1); opacity:1; }
+    80%  { transform: translate(-50%,-50%) scale(1); opacity:1; }
+    100% { transform: translate(-50%,-50%) scale(1); opacity:0; }
+  }
+
+  /* ── TARGET INFO ── */
+  .target-wrap {
+    width: 100%;
+    max-width: 600px;
+    padding: 10px 16px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .target-box {
+    background: var(--card);
+    border: 1.5px solid var(--yellow);
+    border-radius: 12px;
+    padding: 8px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+  }
+  .target-label { color: var(--yellow); font-size: 11px; letter-spacing: .1em; font-weight: 700; }
+  .target-coord { font-size: 20px; font-weight: 800; font-family: 'Courier New', monospace; color: var(--text); }
+  .target-hint  { font-size: 12px; color: var(--muted); }
+
+  #reset-btn {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 10px 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  #reset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── SLIDERS ── */
+  .sliders {
+    width: 100%;
+    max-width: 600px;
+    padding: 10px 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .slider-row {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .slider-label {
+    font-size: 18px;
+    font-weight: 900;
+    font-family: 'Courier New', monospace;
+    min-width: 24px;
+  }
+  .slider-label.a { color: var(--accent); }
+  .slider-label.b { color: var(--green); }
+  .slider-label.c { color: #c084fc; }
+
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range].a { background: linear-gradient(90deg, var(--border), var(--accent)); }
+  input[type=range].b { background: linear-gradient(90deg, var(--border), var(--green)); }
+  input[type=range].c { background: linear-gradient(90deg, var(--border), #c084fc); }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--text);
+    box-shadow: 0 2px 8px #0008;
+    cursor: pointer;
+  }
+  .slider-val {
+    font-family: 'Courier New', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    min-width: 44px;
+    text-align: right;
+    color: var(--text);
+  }
+
+  /* ── EQUATION ── */
+  .equation-bar {
+    width: 100%;
+    max-width: 600px;
+    padding: 0 16px 10px;
+  }
+  .equation-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 18px;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    font-size: clamp(13px, 3.5vw, 17px);
+    color: var(--text);
+    letter-spacing: .02em;
+  }
+  #eq-text span { font-weight: 900; }
+  .eq-a { color: var(--accent); }
+  .eq-b { color: var(--green); }
+  .eq-c { color: #c084fc; }
+
+  /* ── PARTICLES ── */
+  .particle {
+    position: fixed;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 100;
+    animation: fall 1s ease-out forwards;
+  }
+  @keyframes fall {
+    0%   { opacity: 1; transform: translate(0,0) scale(1); }
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0); }
+  }
+
+  /* ── LEVEL BADGE ── */
+  #level-badge {
+    position: absolute;
+    top: 20px; right: 24px;
+    background: #facc1522;
+    border: 1px solid var(--yellow);
+    color: var(--yellow);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: .1em;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="title">🎯 放物線スナイパー</div>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">TIME</div>
+      <div class="stat-value" id="timer-val">60</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">SCORE</div>
+      <div class="stat-value" id="score-val">0</div>
+    </div>
+  </div>
+</header>
+
+<!-- CANVAS -->
+<div class="canvas-wrap">
+  <canvas id="graph" width="600" height="600"></canvas>
+  <div id="hit-banner">🎯 HIT!</div>
+  <div id="level-badge">LV 1</div>
+</div>
+
+<!-- TARGET + RESET -->
+<div class="target-wrap">
+  <div class="target-box">
+    <div>
+      <div class="target-label">🎯 TARGET</div>
+      <div class="target-coord" id="target-display">(3, 4)</div>
+    </div>
+    <div class="target-hint" id="hint-text">放物線をターゲットに当てよ！</div>
+  </div>
+  <button id="reset-btn">↺ リセット</button>
+</div>
+
+<!-- EQUATION -->
+<div class="equation-bar">
+  <div class="equation-box" id="eq-text">y = x²</div>
+</div>
+
+<!-- SLIDERS -->
+<div class="sliders">
+  <div class="slider-row">
+    <div class="slider-label a">a</div>
+    <input type="range" class="a" id="sl-a" min="-3" max="3" step="0.1" value="1">
+    <div class="slider-val" id="val-a">1.0</div>
+  </div>
+  <div class="slider-row">
+    <div class="slider-label b">b</div>
+    <input type="range" class="b" id="sl-b" min="-5" max="5" step="0.1" value="0">
+    <div class="slider-val" id="val-b">0.0</div>
+  </div>
+  <div class="slider-row">
+    <div class="slider-label c">c</div>
+    <input type="range" class="c" id="sl-c" min="-5" max="5" step="0.1" value="0">
+    <div class="slider-val" id="val-c">0.0</div>
+  </div>
+</div>
+
+<script>
+// ── STATE ────────────────────────────────────────────
+const canvas = document.getElementById('graph');
+const ctx    = canvas.getContext('2d');
+const W = 600, H = 600;
+canvas.width = W; canvas.height = H;
+
+let a = 1, b = 0, c = 0;
+let target = { x: 3, y: 4 };
+let score = 0;
+let timeLeft = 60;
+let timerRunning = false;
+let hitCooldown = false;
+let level = 1;
+let consecutiveHits = 0;
+
+// ── COORDINATE TRANSFORM ────────────────────────────
+const RANGE = 8; // -8 to +8
+function toCanvas(x, y) {
+  return {
+    cx: W/2 + (x / RANGE) * (W/2 - 30),
+    cy: H/2 - (y / RANGE) * (H/2 - 30),
+  };
+}
+function fromCanvas(cx, cy) {
+  return {
+    x: (cx - W/2) / (W/2 - 30) * RANGE,
+    y: -(cy - H/2) / (H/2 - 30) * RANGE,
+  };
+}
+
+// ── DRAW ────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // background grid
+  ctx.strokeStyle = '#1a2540';
+  ctx.lineWidth = 1;
+  for (let i = -RANGE; i <= RANGE; i++) {
+    const {cx} = toCanvas(i, 0), {cy} = toCanvas(0, i);
+    ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.stroke();
+  }
+
+  // axes
+  const o = toCanvas(0,0);
+  ctx.strokeStyle = '#2e4070'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, o.cy); ctx.lineTo(W, o.cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(o.cx, 0); ctx.lineTo(o.cx, H); ctx.stroke();
+
+  // axis labels
+  ctx.fillStyle = '#2e4070'; ctx.font = '11px Courier New'; ctx.textAlign = 'center';
+  for (let i = -RANGE; i <= RANGE; i += 2) {
+    if (i === 0) continue;
+    const {cx} = toCanvas(i, 0), {cy} = toCanvas(0, i);
+    ctx.fillText(i, cx, o.cy + 14);
+    ctx.textAlign = 'right';
+    ctx.fillText(i, o.cx - 5, cy + 4);
+    ctx.textAlign = 'center';
+  }
+
+  // parabola
+  if (Math.abs(a) > 0.001) {
+    const grad = ctx.createLinearGradient(0, 0, W, 0);
+    grad.addColorStop(0, '#38bdf888');
+    grad.addColorStop(0.5, '#38bdf8');
+    grad.addColorStop(1, '#38bdf888');
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    let started = false;
+    for (let px = 0; px <= W; px += 1.5) {
+      const fx = fromCanvas(px, 0).x;
+      const fy = a * fx * fx + b * fx + c;
+      const {cy} = toCanvas(0, fy);
+      if (!started) { ctx.moveTo(px, cy); started = true; }
+      else ctx.lineTo(px, cy);
+    }
+    ctx.stroke();
+  }
+
+  // target
+  const {cx: tx, cy: ty} = toCanvas(target.x, target.y);
+  // pulsing ring
+  const now = Date.now();
+  const pulse = 0.5 + 0.5 * Math.sin(now / 250);
+  ctx.strokeStyle = `rgba(251,191,36,${0.5 + pulse * 0.5})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(tx, ty, 14 + pulse * 6, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // crosshair lines
+  ctx.strokeStyle = '#fbbf2455'; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(tx, 0); ctx.lineTo(tx, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, ty); ctx.lineTo(W, ty); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // target dot
+  ctx.fillStyle = '#fbbf24';
+  ctx.shadowColor = '#fbbf24'; ctx.shadowBlur = 20;
+  ctx.beginPath(); ctx.arc(tx, ty, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // target label
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = 'bold 12px Courier New';
+  ctx.textAlign = 'left';
+  ctx.fillText(`(${target.x}, ${target.y})`, tx + 12, ty - 8);
+
+  // distance indicator
+  const dist = getDistance();
+  const close = dist < 0.5;
+  const color = dist < 0.2 ? '#34d399' : dist < 1 ? '#fbbf24' : '#f87171';
+  const {cx: ox, cy: oy} = toCanvas(0,0);
+  ctx.fillStyle = color;
+  ctx.font = 'bold 13px Courier New';
+  ctx.textAlign = 'left';
+  ctx.fillText(`距離: ${dist.toFixed(2)}`, 14, H - 14);
+
+  requestAnimationFrame(draw);
+}
+
+// ── MATH ────────────────────────────────────────────
+function f(x) { return a * x * x + b * x + c; }
+function getDistance() {
+  const fy = f(target.x);
+  return Math.abs(fy - target.y);
+}
+
+// ── HIT CHECK ───────────────────────────────────────
+function checkHit() {
+  if (hitCooldown) return;
+  if (getDistance() < 0.15) {
+    hitCooldown = true;
+    consecutiveHits++;
+    const bonus = Math.min(consecutiveHits, 3);
+    score += 10 * bonus;
+    document.getElementById('score-val').textContent = score;
+    showHit(bonus);
+    spawnParticles();
+    if (!timerRunning) startTimer();
+    setTimeout(() => {
+      newTarget();
+      hitCooldown = false;
+    }, 1000);
+  }
+  updateHint();
+}
+
+function updateHint() {
+  const d = getDistance();
+  const el = document.getElementById('hint-text');
+  if (d < 0.15) { el.textContent = '🎯 ドンピシャ！'; el.style.color = '#34d399'; }
+  else if (d < 0.5) { el.textContent = '🔥 もう少し！'; el.style.color = '#fbbf24'; }
+  else if (d < 2)   { el.textContent = '👀 近いぞ…'; el.style.color = '#94a3b8'; }
+  else              { el.textContent = '放物線をターゲットに当てよ！'; el.style.color = '#64748b'; }
+}
+
+// ── TARGET GENERATION ───────────────────────────────
+function newTarget() {
+  const maxR = Math.min(2 + level, 6);
+  let tx, ty;
+  do {
+    tx = Math.round((Math.random() * maxR * 2 - maxR) * 2) / 2;
+    ty = Math.round((Math.random() * maxR * 2 - maxR) * 2) / 2;
+  } while (tx === target.x && ty === target.y);
+  target = { x: tx, y: ty };
+  document.getElementById('target-display').textContent = `(${tx}, ${ty})`;
+
+  // level up every 3 hits
+  level = 1 + Math.floor(score / 30);
+  document.getElementById('level-badge').textContent = `LV ${level}`;
+}
+
+// ── EFFECTS ─────────────────────────────────────────
+function showHit(bonus) {
+  const banner = document.getElementById('hit-banner');
+  banner.textContent = bonus >= 3 ? '🔥 PERFECT ×3!' : bonus === 2 ? '⚡ COMBO ×2!' : '🎯 HIT!';
+  banner.style.background = bonus >= 3 ? '#fbbf24' : bonus === 2 ? '#38bdf8' : '#34d399';
+  banner.classList.remove('show');
+  void banner.offsetWidth;
+  banner.classList.add('show');
+}
+
+function spawnParticles() {
+  const {cx, cy} = toCanvas(target.x, target.y);
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = rect.width / W, scaleY = rect.height / H;
+  const bx = rect.left + cx * scaleX, by = rect.top + cy * scaleY;
+  const colors = ['#34d399','#38bdf8','#fbbf24','#f87171','#c084fc'];
+  for (let i = 0; i < 16; i++) {
+    const el = document.createElement('div');
+    el.className = 'particle';
+    const angle = (i / 16) * Math.PI * 2;
+    const dist = 60 + Math.random() * 60;
+    el.style.left = bx + 'px';
+    el.style.top  = by + 'px';
+    el.style.background = colors[i % colors.length];
+    el.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+    el.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1000);
+  }
+}
+
+// ── TIMER ───────────────────────────────────────────
+function startTimer() {
+  timerRunning = true;
+  const id = setInterval(() => {
+    timeLeft--;
+    document.getElementById('timer-val').textContent = timeLeft;
+    if (timeLeft <= 10) document.getElementById('timer-val').style.color = '#f87171';
+    if (timeLeft <= 0) {
+      clearInterval(id);
+      timerRunning = false;
+      gameOver();
+    }
+  }, 1000);
+}
+
+function gameOver() {
+  setTimeout(() => {
+    const again = confirm(`⏱ タイムアップ！\n\n🏆 スコア: ${score}点\n\nもう一度プレイしますか？`);
+    if (again) resetGame();
+  }, 200);
+}
+
+// ── RESET ────────────────────────────────────────────
+function resetGame() {
+  a = 1; b = 0; c = 0;
+  document.getElementById('sl-a').value = 1;
+  document.getElementById('sl-b').value = 0;
+  document.getElementById('sl-c').value = 0;
+  document.getElementById('val-a').textContent = '1.0';
+  document.getElementById('val-b').textContent = '0.0';
+  document.getElementById('val-c').textContent = '0.0';
+  score = 0; timeLeft = 60; level = 1; consecutiveHits = 0; hitCooldown = false;
+  document.getElementById('score-val').textContent = '0';
+  document.getElementById('timer-val').textContent = '60';
+  document.getElementById('timer-val').style.color = '#fbbf24';
+  document.getElementById('level-badge').textContent = 'LV 1';
+  timerRunning = false;
+  updateEquation();
+  newTarget();
+}
+
+// ── EQUATION DISPLAY ────────────────────────────────
+function updateEquation() {
+  const aS = a.toFixed(1), bS = Math.abs(b).toFixed(1), cS = Math.abs(c).toFixed(1);
+  const bSign = b >= 0 ? '+' : '−';
+  const cSign = c >= 0 ? '+' : '−';
+  document.getElementById('eq-text').innerHTML =
+    `y = <span class="eq-a">${aS}</span>x² ${bSign} <span class="eq-b">${bS}</span>x ${cSign} <span class="eq-c">${cS}</span>`;
+}
+
+// ── SLIDER EVENTS ────────────────────────────────────
+function setupSlider(id, valId, varName) {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    if (varName === 'a') a = v;
+    if (varName === 'b') b = v;
+    if (varName === 'c') c = v;
+    document.getElementById(valId).textContent = v.toFixed(1);
+    updateEquation();
+    checkHit();
+  });
+}
+setupSlider('sl-a','val-a','a');
+setupSlider('sl-b','val-b','b');
+setupSlider('sl-c','val-c','c');
+
+document.getElementById('reset-btn').addEventListener('click', resetGame);
+
+// ── INIT ────────────────────────────────────────────
+updateEquation();
+newTarget();
+draw();
+</script>
+</body>
+</html>
